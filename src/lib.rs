@@ -333,7 +333,7 @@ pub struct LatLon {
 impl LatLon {
     /// Constructs a LatLon from a given `lat` and `lon`. Returns `None` if the lat or lon is
     /// invalid, e.g. a lat of 100.
-    fn new(lat: f32, lon: f32) -> Option<LatLon> {
+    pub fn new(lat: f32, lon: f32) -> Option<LatLon> {
         if lat <= 90f32 && lat >= -90f32 && lon <= 180f32 && lon >= -180f32 {
             Some(LatLon{ lat: lat, lon: lon })
         } else {
