@@ -324,7 +324,7 @@ fn tile_nw_lat_lon(zoom: u8, x: f32, y: f32) -> LatLon {
 }
 
 /// A single point in the world.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct LatLon {
     lat: f32,
     lon: f32,
