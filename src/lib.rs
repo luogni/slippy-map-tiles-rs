@@ -457,6 +457,22 @@ impl BBox {
         BBox{ top: topleft.lat, left: topleft.lon, bottom: bottomright.lat, right: bottomright.lon }
     }
 
+    /// Given a list of points, return the bouding box specified by those points
+    pub fn new_from_points_list(all: &Vec<LatLon>) -> Option<BBox> {
+        let mut latmin: f32 = 999f32;
+        let mut latmax: f32 = -999f32;
+        let mut lonmin: f32 = 999f32;
+        let mut lonmax: f32 = -999f32;
+        
+        for p in all {
+            if p.lat() < latmin { latmin = p.lat() }
+            if p.lat() > latmax { latmax = p.lat() }
+            if p.lon() < lonmin { lonmin = p.lon() }
+            if p.lon() > lonmax { lonmax = p.lon() }
+        }
+        BBox::new(latmax, lonmin, latmin, lonmax)
+    }
+
     /// Return true iff this point is in this bbox
     pub fn contains_point(&self, point: &LatLon) -> bool {
         (point.lat <= self.top && point.lat > self.bottom && point.lon >= self.left && point.lon < self.right)
@@ -765,6 +781,13 @@ mod test {
         let p2 = LatLon::new(47.2, 15.38).unwrap();
         let b2: BBox = BBox::new_from_points(&p1, &p2);
         assert_eq!(b1, b2);
+
+        let p1 = LatLon::new(54.9, 7.5).unwrap();
+        let p2 = LatLon::new(50.2, 15.38).unwrap();
+        let p3 = LatLon::new(47.2, 5.5).unwrap();
+        let b3: BBox = BBox::new_from_points_list(&vec![p1, p2, p3]).unwrap();
+        assert_eq!(b1, b3);
+        
     }
 
     #[test]
