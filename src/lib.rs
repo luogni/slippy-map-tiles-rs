@@ -4,7 +4,7 @@ extern crate regex;
 use regex::Regex;
 
 /// A single tile.
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Hash)]
 pub struct Tile {
     zoom: u8,
     x: u32,
@@ -109,6 +109,11 @@ impl Tile {
         }
     }
 
+    /// Iterate on all child tiles of this tile
+    pub fn all_subtiles_iter(&self) -> AllSubTilesIterator {
+        AllSubTilesIterator::new_from_tile(&self)
+    }
+
     /// Returns the LatLon for the centre of this tile.
     pub fn centre_point(&self) -> LatLon {
         tile_nw_lat_lon(self.zoom, (self.x as f32)+0.5, (self.y as f32)+0.5)
@@ -168,6 +173,11 @@ impl Tile {
     pub fn ts_path<T: std::fmt::Display>(&self, ext: T) -> String {
         let ts = xy_to_ts(self.x, self.y);
         format!("{}/{}/{}/{}/{}.{}", self.zoom, ts[0], ts[1], ts[2], ts[3], ext)
+    }
+
+    /// Returns the ZXY path for storing this tile.
+    pub fn zxy_path<T: std::fmt::Display>(&self, ext: T) -> String {
+        format!("{}/{}/{}.{}", self.zoom, self.x, self.y, ext)
     }
 
     /// Returns an iterator that yields all the tiles possible, starting from 0/0/0. Tiles are
@@ -308,6 +318,36 @@ impl Iterator for AllTilesToZoomIterator {
 
         // If we've got to here, we know how big it is
         (total, Some(total))
+    }
+}
+
+pub struct AllSubTilesIterator {
+    _tiles: Vec<Tile>,
+}
+
+impl AllSubTilesIterator {
+    pub fn new_from_tile(base_tile: &Tile) -> Self {
+        let new_tiles = match base_tile.subtiles() {
+            None => Vec::new(),
+            Some(t) => vec![t[0], t[1], t[2], t[3]],
+        };
+        AllSubTilesIterator{ _tiles: new_tiles }
+    }
+
+}
+
+impl Iterator for AllSubTilesIterator {
+    type Item = Tile;
+
+    fn next(&mut self) -> Option<Tile> {
+        if self._tiles.len() == 0 {
+            return None;
+        }
+        let next = self._tiles.remove(0);
+        if let Some(subtiles) = next.subtiles() {
+            self._tiles.extend_from_slice(&subtiles);
+        }
+        Some(next)
     }
 }
 
@@ -622,6 +662,7 @@ mod test {
         assert_eq!(parent.tc_path("png"), "0/000/000/000/000/000/000.png");
         assert_eq!(parent.mp_path("png"), "0/0000/0000/0000/0000.png");
         assert_eq!(parent.ts_path("png"), "0/000/000/000/000.png");
+        assert_eq!(parent.zxy_path("png"), "0/0/0.png");
 
         let children = parent.subtiles();
         assert_eq!(children.is_none(), false);
@@ -637,6 +678,7 @@ mod test {
 
         assert_eq!(children[3], Tile::new(1, 1, 1).unwrap());
         assert_eq!(children[3].tc_path("png"), "1/000/000/001/000/000/001.png");
+        assert_eq!(children[3].zxy_path("png"), "1/1/1.png")
         
     }
 
@@ -914,5 +956,21 @@ mod test {
         assert_eq!(Tile::all_to_zoom(15).size_hint(), (18_446_744_073_709_551_615, None));
         assert_eq!(Tile::all_to_zoom(16).size_hint(), (18_446_744_073_709_551_615, None));
 
+    }
+
+    #[test]
+    fn all_sub_tiles_iter() {
+        use super::Tile;
+        let mut it = Tile::new(4, 7, 5).unwrap().all_subtiles_iter();
+        assert_eq!(it.next(), Tile::new(5, 14, 10));
+        assert_eq!(it.next(), Tile::new(5, 15, 10));
+        assert_eq!(it.next(), Tile::new(5, 14, 11));
+        assert_eq!(it.next(), Tile::new(5, 15, 11));
+
+        let z10tiles: Vec<Tile> = Tile::new(4, 7, 5).unwrap().all_subtiles_iter().take_while(|t| t.zoom() < 11).filter(|t| t.zoom() == 10).collect();
+        assert_eq!(z10tiles.len(), 4096);
+        assert_eq!(z10tiles[0].zoom(), 10);
+        assert_eq!(z10tiles[z10tiles.len()-1].zoom(), 10);
+        
     }
 }
